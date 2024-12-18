@@ -1,0 +1,18 @@
+.senqt-lms-carousel {
+    display: flex;
+    overflow-x: auto;
+    gap: 1rem;
+}
+.senqt-lms-carousel .course-item {
+    flex: 0 0 300px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+}
+.senqt-lms-list .course-item {
+    margin-bottom: 20px;
+}
+.pagination {
+    margin-top: 20px;
+    text-align: center;
+}
