@@ -7,6 +7,11 @@
  * Author: DatNth
  * Author URI: #
  * License: GPL2
+ * 
+ * Requires at least: 5.0
+ * Requires PHP: 7.2
+ * WC requires at least: 3.0
+ * WC tested up to: 8.4
  */
 
 // Ngăn chặn truy cập trực tiếp
@@ -16,6 +21,21 @@ if (!defined('ABSPATH')) exit;
 define('SENQT_LMS_VERSION', '1.0');
 define('SENQT_LMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SENQT_LMS_PLUGIN_URL', plugin_dir_url(__FILE__));
+
+// Kiểm tra WooCommerce
+function senqt_lms_check_woocommerce() {
+    if (!class_exists('WooCommerce')) {
+        add_action('admin_notices', function() {
+            ?>
+            <div class="notice notice-error">
+                <p><?php _e('SenQT LMS yêu cầu cài đặt và kích hoạt plugin WooCommerce. Vui lòng cài đặt WooCommerce trước khi sử dụng plugin này.', 'senqt-lms'); ?></p>
+            </div>
+            <?php
+        });
+        return false;
+    }
+    return true;
+}
 
 // Autoload classes
 spl_autoload_register(function ($class_name) {
@@ -30,37 +50,50 @@ spl_autoload_register(function ($class_name) {
 });
 
 // Load core files
-require_once SENQT_LMS_PLUGIN_DIR . 'includes/core/senqt-course.php';
-require_once SENQT_LMS_PLUGIN_DIR . 'includes/admin/senqt-admin.php';
-require_once SENQT_LMS_PLUGIN_DIR . 'includes/frontend/senqt-shortcodes.php';
-require_once SENQT_LMS_PLUGIN_DIR . 'includes/payment/senqt-payment.php';
+function senqt_lms_load_files() {
+    if (!senqt_lms_check_woocommerce()) {
+        return;
+    }
+
+    require_once SENQT_LMS_PLUGIN_DIR . 'includes/core/senqt-course.php';
+    require_once SENQT_LMS_PLUGIN_DIR . 'includes/admin/senqt-admin.php';
+    require_once SENQT_LMS_PLUGIN_DIR . 'includes/payment/senqt-payment.php';
+}
 
 // Initialize plugin
 function senqt_lms_init() {
+    if (!senqt_lms_check_woocommerce()) {
+        return;
+    }
+
     // Initialize admin
     if (is_admin()) {
         new SenQT_LMS_Admin();
     }
 
-    // Initialize shortcodes
-    new SenQT_LMS_Shortcodes();
-
     // Initialize payment
-    new SenQT_LMS_Payment();
+    SenQT_LMS_Payment::get_instance();
 
     // Initialize course
     SenQT_LMS_Course::get_instance();
 }
-add_action('plugins_loaded', 'senqt_lms_init');
+
+// Hook vào sau khi WooCommerce đã được load
+add_action('plugins_loaded', 'senqt_lms_load_files', 20);
+add_action('init', 'senqt_lms_init', 20);
 
 // Activation hook
 register_activation_hook(__FILE__, 'senqt_lms_activate');
 function senqt_lms_activate() {
-    // Create necessary database tables
+    if (!senqt_lms_check_woocommerce()) {
+        wp_die(__('SenQT LMS yêu cầu cài đặt và kích hoạt plugin WooCommerce. Vui lòng cài đặt WooCommerce trước khi kích hoạt plugin này.', 'senqt-lms'));
+    }
+
+    // Tạo các bảng cần thiết
     global $wpdb;
-    
+
     $charset_collate = $wpdb->get_charset_collate();
-    
+
     // Table for offline payments
     $table_name = $wpdb->prefix . 'senqt_offline_payments';
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -73,10 +106,11 @@ function senqt_lms_activate() {
         notes text,
         PRIMARY KEY  (id)
     ) $charset_collate;";
-    
+
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+
     dbDelta($sql);
-    
+
     // Flush rewrite rules
     flush_rewrite_rules();
 }

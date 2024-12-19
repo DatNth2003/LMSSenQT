@@ -45,6 +45,16 @@ class SenQT_LMS_Admin {
             'senqt_offline_payments',
             array($this, 'render_offline_payments_page')
         );
+
+        // Submenu cho báo cáo thống kê
+        add_submenu_page(
+            'senqt_course_management',
+            __('Báo cáo & Thống kê', 'senqt-lms'),
+            __('Báo cáo & Thống kê', 'senqt-lms'),
+            'manage_options',
+            'senqt_reports',
+            array($this, 'render_reports_page')
+        );
     }
 
     public function enqueue_admin_assets() {
@@ -91,5 +101,9 @@ class SenQT_LMS_Admin {
         
         // Include view
         include SENQT_LMS_PLUGIN_DIR . 'includes/admin/views/offline-payments.php';
+    }
+
+    public function render_reports_page() {
+        include SENQT_LMS_PLUGIN_DIR . 'includes/admin/views/reports.php';
     }
 }
