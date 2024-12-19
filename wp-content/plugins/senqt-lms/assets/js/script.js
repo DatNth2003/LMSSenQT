@@ -1,14 +1,14 @@
 jQuery(document).ready(function($) {
-    // Kiểm tra xem có carousel nào không
+    // Initialize Owl Carousel
     if ($('.senqt-lms-carousel').length > 0) {
         $('.senqt-lms-carousel').owlCarousel({
             items: 4,
             loop: true,
-            margin: 10,
+            margin: 20,
             nav: true,
             dots: true,
             autoplay: true,
-            autoplayTimeout: 3000,
+            autoplayTimeout: 5000,
             autoplayHoverPause: true,
             responsive: {
                 0: {

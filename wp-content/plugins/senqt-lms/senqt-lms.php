@@ -10,20 +10,79 @@
  */
 
 // Ngăn chặn truy cập trực tiếp
-if ( !defined( 'ABSPATH' ) ) exit;
+if (!defined('ABSPATH')) exit;
 
-// Định nghĩa đường dẫn và URL của plugin
-define( 'SENQT_LMS_PLUGIN_PATH', plugin_dir_path( __FILE__ ) );
-define( 'SENQT_LMS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'SENQT_LMS_VERSION', '1.0' );
+// Định nghĩa hằng số
+define('SENQT_LMS_VERSION', '1.0');
+define('SENQT_LMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('SENQT_LMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// Include các file cần thiết
-include_once( SENQT_LMS_PLUGIN_PATH . 'includes/cpt_course.php' );
-include_once( SENQT_LMS_PLUGIN_PATH . 'includes/course_list.php' );
+// Autoload classes
+spl_autoload_register(function ($class_name) {
+    if (strpos($class_name, 'SenQT_LMS') !== false) {
+        $classes_dir = realpath(plugin_dir_path(__FILE__)) . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR;
+        $class_file = str_replace('_', DIRECTORY_SEPARATOR, $class_name) . '.php';
+        $file = $classes_dir . $class_file;
+        if (file_exists($file)) {
+            require_once $file;
+        }
+    }
+});
 
-// Tải style hoặc script
-function senqt_lms_enqueue_assets() {
-    wp_enqueue_style( 'senqt-lms-style', SENQT_LMS_PLUGIN_URL . 'assets/style.css', array(), SENQT_LMS_VERSION );
-    wp_enqueue_script( 'senqt-lms-script', SENQT_LMS_PLUGIN_URL . 'assets/script.js', array('jquery'), SENQT_LMS_VERSION, true );
+// Load core files
+require_once SENQT_LMS_PLUGIN_DIR . 'includes/core/senqt-course.php';
+require_once SENQT_LMS_PLUGIN_DIR . 'includes/admin/senqt-admin.php';
+require_once SENQT_LMS_PLUGIN_DIR . 'includes/frontend/senqt-shortcodes.php';
+require_once SENQT_LMS_PLUGIN_DIR . 'includes/payment/senqt-payment.php';
+
+// Initialize plugin
+function senqt_lms_init() {
+    // Initialize admin
+    if (is_admin()) {
+        new SenQT_LMS_Admin();
+    }
+
+    // Initialize shortcodes
+    new SenQT_LMS_Shortcodes();
+
+    // Initialize payment
+    new SenQT_LMS_Payment();
+
+    // Initialize course
+    SenQT_LMS_Course::get_instance();
 }
-add_action( 'wp_enqueue_scripts', 'senqt_lms_enqueue_assets' );
+add_action('plugins_loaded', 'senqt_lms_init');
+
+// Activation hook
+register_activation_hook(__FILE__, 'senqt_lms_activate');
+function senqt_lms_activate() {
+    // Create necessary database tables
+    global $wpdb;
+    
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    // Table for offline payments
+    $table_name = $wpdb->prefix . 'senqt_offline_payments';
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) NOT NULL,
+        course_id bigint(20) NOT NULL,
+        amount decimal(10,2) NOT NULL,
+        status varchar(20) NOT NULL DEFAULT 'pending',
+        payment_date datetime DEFAULT CURRENT_TIMESTAMP,
+        notes text,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    // Flush rewrite rules
+    flush_rewrite_rules();
+}
+
+// Deactivation hook
+register_deactivation_hook(__FILE__, 'senqt_lms_deactivate');
+function senqt_lms_deactivate() {
+    flush_rewrite_rules();
+}
